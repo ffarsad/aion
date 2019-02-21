@@ -15,6 +15,7 @@ import org.aion.mcf.core.AccountState;
 import org.aion.mcf.db.IBlockStoreBase;
 import org.aion.mcf.vm.types.KernelInterfaceForFastVM;
 import org.aion.mcf.vm.types.Log;
+import org.aion.util.conversions.Hex;
 import org.aion.vm.VmFactoryImplementation.VM;
 import org.aion.vm.api.interfaces.Address;
 import org.aion.vm.api.interfaces.IExecutionLog;
@@ -200,6 +201,24 @@ public class BulkExecutor {
 
             AionTransaction transaction = transactions.get(i);
             TransactionContext context = contexts[i];
+
+            if (transactionIsForAionVirtualMachine(transaction)) {
+                if (transaction.isContractCreationTransaction()) {
+                    if (result.getReturnData() != null) {
+                        this.logger.debug("Contract address for avm transaction " + Hex.toHexString(transaction.getTransactionHash()) + " is: " + Hex.toHexString(result.getReturnData()));
+                    } else {
+                        this.logger.debug("Contract address for avm transaction " + Hex.toHexString(transaction.getTransactionHash()) + " is: null");
+                    }
+                }
+            } else {
+                if (transaction.isContractCreationTransaction()) {
+                    if (transaction.getContractAddress() != null) {
+                        this.logger.debug("Contract address for fvm transaction " + Hex.toHexString(transaction.getTransactionHash()) + " is: " + transaction.getContractAddress().toString());
+                    } else {
+                        this.logger.debug("Contract address for fvm transaction " + Hex.toHexString(transaction.getTransactionHash()) + " is: null");
+                    }
+                }
+            }
 
             // 1. Check the block energy limit & reject if necessary.
             long energyUsed = computeEnergyUsed(transaction.getEnergyLimit(), result);

@@ -88,5 +88,6 @@
         <API>INFO</API>
         <P2P>INFO</P2P>
         <GUI>INFO</GUI>
+	<TX>TRACE</TX>
     </log>
 </aion>
