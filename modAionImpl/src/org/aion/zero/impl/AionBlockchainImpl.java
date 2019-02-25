@@ -320,9 +320,8 @@ public class AionBlockchainImpl implements IAionBlockchain {
     }
 
     @Override
-    public List<AionBlock> getBlocksByRange(long lowest, long highest) {
-        // TODO: implement
-        return null;
+    public List<AionBlock> getBlocksByRange(long first, long last) {
+        return getBlockStore().getBlocksByRange(first, last);
     }
 
     @Override
