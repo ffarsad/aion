@@ -265,12 +265,17 @@ public class AionImpl implements IAionChain {
                     this.getAionHub().getBlockchain().getBestBlock().getNumber();
             long networkBestBlockNumber =
                     this.getAionHub().getSyncMgr().getNetworkBestBlockNumber();
+
+            if (networkBestBlockNumber == 0) {
+                return false;
+            }
+
             // to prevent unecessary flopping, consider being within 5 blocks of
             // head to be
             // block propagation and not syncing.
             // NOTE: in the future block propagation may not be tied in with
             // syncing
-            return (localBestBlockNumber + 5) < networkBestBlockNumber;
+            return (localBestBlockNumber + 5) >= networkBestBlockNumber;
         } catch (Exception e) {
             LOG_GEN.debug("query request failed", e);
             return false;

@@ -52,6 +52,7 @@ public class RpcMethods {
     }
 
     public RpcMethod get(String name) {
+        enabledEndpoints.put("net_peerCount", (params) -> api.net_peerCount());
         return enabledEndpoints.get(name);
     }
 
