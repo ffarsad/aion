@@ -560,6 +560,26 @@ public class AionBlockchainImpl implements IAionBlockchain {
         return blockNumber < bestBlockNumber.get() - repository.getPruneBlockCount() + 1;
     }
 
+    /**
+     * Import block without validity checks and creating the state.
+     *
+     * @param block the block to be imported
+     * @return a result describing the status of the attempted import
+     */
+    public synchronized ImportResult tryFastImport(final AionBlock block) {
+        // TODO: implement
+        // TODO: check that the child is stored
+        // TODO: check that the block number corresponds to the child block number
+        // TODO: update both blocks and index databases
+        return null;
+    }
+
+    public ByteArrayWrapper findMissingAncestor(byte[] parentHash) {
+        // TODO: walk though parent blocks to determine what's missing
+        // TODO: return null when complete, i.e. no missing ancestors exist
+        return null;
+    }
+
     public synchronized ImportResult tryToConnect(final AionBlock block) {
         return tryToConnectInternal(block, System.currentTimeMillis() / THOUSAND_MS);
     }
