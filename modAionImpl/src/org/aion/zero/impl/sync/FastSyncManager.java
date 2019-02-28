@@ -4,10 +4,13 @@ import static org.aion.p2p.V1Constants.CONTRACT_MISSING_KEYS_LIMIT;
 import static org.aion.p2p.V1Constants.TRIE_DATA_REQUEST_MAXIMUM_BATCH_SIZE;
 
 import com.google.common.annotations.VisibleForTesting;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
@@ -19,7 +22,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.aion.base.type.AionAddress;
 import org.aion.base.util.ByteArrayWrapper;
+import org.aion.base.util.ByteUtil;
+import org.aion.log.AionLoggerFactory;
+import org.aion.log.LogEnum;
 import org.aion.mcf.core.AccountState;
+import org.aion.mcf.valid.BlockHeaderValidator;
 import org.aion.p2p.INode;
 import org.aion.vm.api.interfaces.Address;
 import org.aion.zero.impl.AionBlockchainImpl;
@@ -27,6 +34,9 @@ import org.aion.zero.impl.db.ContractInformation;
 import org.aion.zero.impl.sync.msg.RequestTrieData;
 import org.aion.zero.impl.sync.msg.ResponseBlocks;
 import org.aion.zero.impl.types.AionBlock;
+import org.aion.zero.types.A0BlockHeader;
+import org.apache.commons.collections4.map.LRUMap;
+import org.slf4j.Logger;
 
 /**
  * Directs behavior for fast sync functionality.
@@ -57,15 +67,28 @@ public final class FastSyncManager {
 
     private final AionBlockchainImpl chain;
 
+    // TODO: ensure it gets instantiated for testing
+    private BlockHeaderValidator<A0BlockHeader> blockHeaderValidator;
+
+    // TODO: consider adding a FAST_SYNC log as well
+    private static final Logger log = AionLoggerFactory.getLogger(LogEnum.SYNC.name());
+
     public FastSyncManager() {
         this.enabled = false;
         this.chain = null;
     }
 
     public FastSyncManager(AionBlockchainImpl chain) {
+        this(chain, null);
+    }
+
+    public FastSyncManager(
+            AionBlockchainImpl chain, BlockHeaderValidator<A0BlockHeader> blockHeaderValidator) {
         this.enabled = true;
         this.chain = chain;
+        this.blockHeaderValidator = blockHeaderValidator;
     }
+
     /** This builder allows creating customized {@link FastSyncManager} objects for unit tests. */
     @VisibleForTesting
     static class Builder {
@@ -426,12 +449,82 @@ public final class FastSyncManager {
         }
     }
 
+    // TODO: find alternative to making this a map; only need a list
+    // TODO: handle synchronization after logic is correctly implemented
+    Map<ByteArrayWrapper, Long> importedHashes = new LRUMap<>(4096);
+    Map<ByteArrayWrapper, Long> receivedHashes = new HashMap<>();
+    Map<ByteArrayWrapper, BlocksWrapper> receivedBlocks = new HashMap<>();
+
     /** checks PoW and adds correct blocks to import list */
     public void validateAndAddBlocks(int peerId, String displayId, ResponseBlocks response) {
-        // TODO: implement
+        List<AionBlock> filtered = new ArrayList<>();
+
+        A0BlockHeader currentHeader, previousHeader = null;
+        for (AionBlock currentBlock : response.getBlocks()) {
+            ByteArrayWrapper hash = ByteArrayWrapper.wrap(currentBlock.getHash());
+            if (importedHashes.containsKey(hash)) {
+                previousHeader = currentBlock.getHeader();
+                continue;
+            }
+            currentHeader = currentBlock.getHeader();
+
+            // ignore batch if any invalidated header
+            if (!this.blockHeaderValidator.validate(currentHeader, log)) {
+                if (log.isDebugEnabled()) {
+                    log.debug(
+                            "<invalid-header num={} hash={}>",
+                            currentHeader.getNumber(),
+                            currentHeader.getHash());
+                }
+                if (log.isTraceEnabled()) {
+                    log.debug("<invalid-header: {}>", currentHeader.toString());
+                }
+                return;
+            }
+
+            // ignore batch if not ordered correctly
+            if (previousHeader != null
+                    && (currentHeader.getNumber() != (previousHeader.getNumber() - 1)
+                            || !Arrays.equals(
+                                    previousHeader.getParentHash(), currentHeader.getHash()))) {
+                log.debug(
+                        "<inconsistent-block-headers from={}, num={}, prev-1={}, p_hash={}, prev={}>",
+                        displayId,
+                        currentHeader.getNumber(),
+                        previousHeader.getNumber() - 1,
+                        ByteUtil.toHexString(previousHeader.getParentHash()),
+                        ByteUtil.toHexString(currentHeader.getHash()));
+                return;
+            }
+
+            filtered.add(currentBlock);
+            previousHeader = currentHeader;
+            receivedHashes.put(hash, currentBlock.getNumber());
+        }
+
+        if (!filtered.isEmpty()) {
+            ByteArrayWrapper first = ByteArrayWrapper.wrap(filtered.get(0).getHash());
+            if (receivedBlocks.containsKey(first)) {
+                // TODO: decide how to handle multiple entries
+                // TODO: implement
+            } else {
+                receivedBlocks.put(first, new BlocksWrapper(peerId, displayId, filtered));
+            }
+        }
     }
 
     public BlocksWrapper takeFilteredBlocks(ByteArrayWrapper required) {
+        // first check the map
+        if (receivedBlocks.containsKey(required)) {
+            return receivedBlocks.remove(required);
+        }
+
+        // next check if it's part of a batch
+        if (receivedHashes.containsKey(required)) {
+
+
+        }
+
         // TODO: ensure that blocks that are of heights larger than the required are discarded
         // TODO: the fastSyncMgr ensured the batch cannot be empty
         // TODO: ensure that the required hash is part of the batch

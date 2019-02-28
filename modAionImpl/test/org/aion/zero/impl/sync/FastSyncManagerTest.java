@@ -49,6 +49,7 @@ public final class FastSyncManagerTest {
         // return the given key as state root
         AionBlock pivot = mock(AionBlock.class);
         when(pivot.getStateRoot()).thenReturn(root);
+        when(pivot.getHash()).thenReturn(root);
 
         // return an empty set when searching for missing nodes
         AionBlockchainImpl chain = mock(AionBlockchainImpl.class);
@@ -68,6 +69,7 @@ public final class FastSyncManagerTest {
         // return the given key as state root
         AionBlock pivot = mock(AionBlock.class);
         when(pivot.getStateRoot()).thenReturn(root);
+        when(pivot.getHash()).thenReturn(root);
 
         // return a non-empty set when searching for missing nodes
         AionBlockchainImpl chain = mock(AionBlockchainImpl.class);
