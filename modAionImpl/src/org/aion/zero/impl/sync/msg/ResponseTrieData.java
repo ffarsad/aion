@@ -97,7 +97,13 @@ public final class ResponseTrieData extends Msg {
         if (message == null || message.length == 0) {
             return null;
         } else {
-            RLPList list = (RLPList) RLP.decode2(message).get(0);
+            RLPList list = RLP.decode2(message);
+            if (list.get(0) instanceof RLPList) {
+                list = (RLPList) list.get(0);
+            } else {
+                return null;
+            }
+
             if (list.size() != TRIE_DATA_RESPONSE_COMPONENTS) {
                 return null;
             } else {
