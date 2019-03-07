@@ -13,12 +13,15 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.aion.base.type.AionAddress;
 import org.aion.base.util.ByteArrayWrapper;
@@ -450,8 +453,9 @@ public final class FastSyncManager {
     // TODO: find alternative to making this a map; only need a list
     // TODO: handle synchronization after logic is correctly implemented
     Map<ByteArrayWrapper, Long> importedHashes = new LRUMap<>(4096);
-    Map<ByteArrayWrapper, Long> receivedHashes = new HashMap<>();
+    Map<ByteArrayWrapper, Long> receivedHashes = new LRUMap<>(4096);
     Map<Long, BlocksWrapper> receivedBlocks = new HashMap<>();
+    BlockingDeque<BlocksWrapper> pendingBlocksQueue = new LinkedBlockingDeque<>();
 
     /** checks PoW and adds correct blocks to import list */
     public void validateAndAddBlocks(int peerId, String displayId, ResponseBlocks response) {
@@ -460,7 +464,10 @@ public final class FastSyncManager {
         A0BlockHeader currentHeader, previousHeader = null;
         for (AionBlock currentBlock : response.getBlocks()) {
             ByteArrayWrapper hash = ByteArrayWrapper.wrap(currentBlock.getHash());
-            if (importedHashes.containsKey(hash)) {
+            if (importedHashes.containsKey(hash)) { // exclude imported
+                previousHeader = currentBlock.getHeader();
+                continue;
+            } else if (receivedHashes.containsKey(hash)) { // exclude known hashes
                 previousHeader = currentBlock.getHeader();
                 continue;
             }
@@ -503,8 +510,7 @@ public final class FastSyncManager {
         if (!filtered.isEmpty()) {
             long first = filtered.get(0).getNumber();
             if (receivedBlocks.containsKey(first)) {
-                // TODO: decide how to handle multiple entries
-                // TODO: implement
+                pendingBlocksQueue.add(new BlocksWrapper(peerId, displayId, filtered));
             } else {
                 receivedBlocks.put(first, new BlocksWrapper(peerId, displayId, filtered));
             }
@@ -517,8 +523,18 @@ public final class FastSyncManager {
             return receivedBlocks.remove(required);
         }
 
-        // next check if it's part of a batch
-        if (receivedHashes.containsKey(required)) {}
+        Optional<Long> key =
+                receivedBlocks.keySet().stream().filter(k -> k <= required).min(Long::compareTo);
+
+        if (key.isPresent()) {
+            return receivedBlocks.get(key.get());
+        } else {
+            try {
+                pendingBlocksQueue.take();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
 
         // TODO: ensure that blocks that are of heights larger than the required are discarded
         // TODO: the fastSyncMgr ensured the batch cannot be empty

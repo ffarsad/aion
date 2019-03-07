@@ -1,6 +1,7 @@
 package org.aion.zero.impl.sync;
 
 import java.util.List;
+import java.util.stream.Collectors;
 import org.aion.mcf.core.FastImportResult;
 import org.aion.zero.impl.AionBlockchainImpl;
 import org.aion.zero.impl.types.AionBlock;
@@ -47,7 +48,10 @@ final class TaskFastImportBlocks implements Runnable {
                     BlocksWrapper bw = fastSyncMgr.takeFilteredBlocks(required);
 
                     // the fastSyncMgr ensured the batch cannot be empty
-                    List<AionBlock> batch = bw.getBlocks();
+                    List<AionBlock> batch =
+                            bw.getBlocks().stream()
+                                    .filter(b -> b.getNumber() >= required)
+                                    .collect(Collectors.toList());
 
                     // process batch and update the peer state
                     FastImportResult importResult;
