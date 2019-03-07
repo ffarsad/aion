@@ -1,7 +1,6 @@
 package org.aion.zero.impl.sync;
 
 import java.util.List;
-import org.aion.base.util.ByteArrayWrapper;
 import org.aion.mcf.core.FastImportResult;
 import org.aion.zero.impl.AionBlockchainImpl;
 import org.aion.zero.impl.types.AionBlock;
@@ -19,7 +18,7 @@ final class TaskFastImportBlocks implements Runnable {
 
     private final AionBlockchainImpl chain;
     private final FastSyncManager fastSyncMgr;
-    private ByteArrayWrapper required;
+    private long required;
     private final Logger log;
 
     TaskFastImportBlocks(
@@ -27,7 +26,7 @@ final class TaskFastImportBlocks implements Runnable {
         this.chain = chain;
         this.fastSyncMgr = fastSyncMgr;
         this.log = log;
-        this.required = null;
+        this.required = 0;
     }
 
     @Override
@@ -36,14 +35,14 @@ final class TaskFastImportBlocks implements Runnable {
         while (!fastSyncMgr.isComplete()) {
             if (fastSyncMgr.isCompleteBlockData()) {
                 // the block data is complete, but fast sync may still fail and reset pivot
-                required = null;
+                required = 0;
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
                 }
             } else {
-                if (required == null) {
-                    required = fastSyncMgr.getPivotHash();
+                if (required == 0) {
+                    required = fastSyncMgr.getPivotNumber();
                 } else {
                     BlocksWrapper bw = fastSyncMgr.takeFilteredBlocks(required);
 
@@ -89,7 +88,7 @@ final class TaskFastImportBlocks implements Runnable {
                                 lastImported = b;
                             } else if (importResult.isKnown()) {
                                 lastImported = null; // to not update required incorrectly below
-                                required = chain.findMissingAncestor(b.getParentHash());
+                                required = chain.findMissingAncestorHeight(b.getNumber() - 1);
                                 break; // no need to continue importing
                             }
                         } catch (Exception e) {
@@ -106,7 +105,7 @@ final class TaskFastImportBlocks implements Runnable {
 
                     // update the required hash
                     if (lastImported != null) {
-                        required = ByteArrayWrapper.wrap(lastImported.getParentHash());
+                        required = lastImported.getNumber() - 1;
                     }
                 }
             }

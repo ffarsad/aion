@@ -652,6 +652,31 @@ public class AionBlockchainImpl implements IAionBlockchain {
         }
     }
 
+    /**
+     * Walks though the ancestor blocks starting with the given block number to determine if there
+     * is an ancestor missing from storage. Returns the ancestor's block number if one is found
+     * missing or {@code 0} when the history is complete, i.e. no missing ancestors exist.
+     *
+     * @param height the first block number to be checked if present in the repository
+     * @return the ancestor's block number if one is found missing or {@code 0} when the history is
+     *     complete
+     */
+    public long findMissingAncestorHeight(long height) {
+        long currentNumber = height;
+        AionBlock known = getBlockStore().getChainBlockByNumber(height);
+
+        while (known != null && known.getNumber() > 0) {
+            currentNumber = known.getNumber() - 1;
+            known = getBlockStore().getBlockByHash(known.getParentHash());
+        }
+
+        if (known == null) {
+            return currentNumber;
+        } else {
+            return 0;
+        }
+    }
+
     public synchronized ImportResult tryToConnect(final AionBlock block) {
         return tryToConnectInternal(block, System.currentTimeMillis() / THOUSAND_MS);
     }

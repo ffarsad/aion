@@ -626,6 +626,60 @@ public class BlockchainImplementationTest {
     }
 
     @Test
+    public void testFindMissingAncestorHeight_withCompleteChain() {
+        StandaloneBlockchain.Builder builder = new StandaloneBlockchain.Builder();
+        StandaloneBlockchain.Bundle bundle = builder.withValidatorConfiguration("simple").build();
+
+        StandaloneBlockchain chain = bundle.bc;
+
+        // populate chain at random
+        generateRandomChainWithoutTransactions(chain, 2, 1);
+
+        AionBlock best = chain.getBestBlock();
+        long bestNumber = best.getNumber();
+
+        assertThat(chain.findMissingAncestorHeight(bestNumber)).isEqualTo(0);
+    }
+
+    @Test
+    public void testFindMissingAncestorHeight_withFirstMissing() {
+        StandaloneBlockchain.Builder builder = new StandaloneBlockchain.Builder();
+        StandaloneBlockchain.Bundle bundle = builder.withValidatorConfiguration("simple").build();
+
+        StandaloneBlockchain chain = bundle.bc;
+
+        // populate chain at random
+        generateRandomChainWithoutTransactions(chain, 2, 1);
+
+        AionBlock best = chain.getBestBlock();
+        long bestNumber = best.getNumber();
+
+        // delete the block from the db
+        chain.getRepository().getBlockDatabase().delete(best.getHash());
+
+        assertThat(chain.findMissingAncestorHeight(bestNumber)).isEqualTo(bestNumber);
+    }
+
+    @Test
+    public void testFindMissingAncestorHeight_withParentMissing() {
+        StandaloneBlockchain.Builder builder = new StandaloneBlockchain.Builder();
+        StandaloneBlockchain.Bundle bundle = builder.withValidatorConfiguration("simple").build();
+
+        StandaloneBlockchain chain = bundle.bc;
+
+        // populate chain at random
+        generateRandomChainWithoutTransactions(chain, 2, 1);
+
+        AionBlock best = chain.getBestBlock();
+        long bestNumber = best.getNumber();
+
+        // delete the block from the db
+        chain.getRepository().getBlockDatabase().delete(best.getParentHash());
+
+        assertThat(chain.findMissingAncestorHeight(bestNumber)).isEqualTo(bestNumber - 1);
+    }
+
+    @Test
     public void tryFastImport_withNullBlock() {
         StandaloneBlockchain.Builder builder = new StandaloneBlockchain.Builder();
         StandaloneBlockchain.Bundle bundle = builder.withValidatorConfiguration("simple").build();

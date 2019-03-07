@@ -63,7 +63,6 @@ public final class FastSyncManager {
 
     private AionBlock pivot = null;
     private long pivotNumber = -1;
-    private ByteArrayWrapper pivotHash = null;
 
     private final AionBlockchainImpl chain;
 
@@ -226,7 +225,6 @@ public final class FastSyncManager {
 
         this.pivot = pivot;
         this.pivotNumber = pivot.getNumber();
-        this.pivotHash = ByteArrayWrapper.wrap(pivot.getHash());
     }
 
     public boolean isAbovePivot(INode n) {
@@ -295,13 +293,13 @@ public final class FastSyncManager {
         if (completeBlocks.get()) {
             // all checks have already passed
             return true;
-        } else if (pivotHash == null) {
+        } else if (pivotNumber == -1) {
             // the pivot was not initialized yet
             return false;
         } else if (chain.getBlockStore().getChainBlockByNumber(1L) == null) {
             // checks for first block for fast fail if incomplete
             return false;
-        } else if (chain.findMissingAncestor(pivotHash.getData()) != null) { // long check done last
+        } else if (chain.findMissingAncestorHeight(pivotNumber) != 0) { // long check done last
             // full check from pivot returned block
             // i.e. the chain was incomplete at some point
             return false;
@@ -453,7 +451,7 @@ public final class FastSyncManager {
     // TODO: handle synchronization after logic is correctly implemented
     Map<ByteArrayWrapper, Long> importedHashes = new LRUMap<>(4096);
     Map<ByteArrayWrapper, Long> receivedHashes = new HashMap<>();
-    Map<ByteArrayWrapper, BlocksWrapper> receivedBlocks = new HashMap<>();
+    Map<Long, BlocksWrapper> receivedBlocks = new HashMap<>();
 
     /** checks PoW and adds correct blocks to import list */
     public void validateAndAddBlocks(int peerId, String displayId, ResponseBlocks response) {
@@ -503,7 +501,7 @@ public final class FastSyncManager {
         }
 
         if (!filtered.isEmpty()) {
-            ByteArrayWrapper first = ByteArrayWrapper.wrap(filtered.get(0).getHash());
+            long first = filtered.get(0).getNumber();
             if (receivedBlocks.containsKey(first)) {
                 // TODO: decide how to handle multiple entries
                 // TODO: implement
@@ -513,17 +511,14 @@ public final class FastSyncManager {
         }
     }
 
-    public BlocksWrapper takeFilteredBlocks(ByteArrayWrapper required) {
+    public BlocksWrapper takeFilteredBlocks(long required) {
         // first check the map
         if (receivedBlocks.containsKey(required)) {
             return receivedBlocks.remove(required);
         }
 
         // next check if it's part of a batch
-        if (receivedHashes.containsKey(required)) {
-
-
-        }
+        if (receivedHashes.containsKey(required)) {}
 
         // TODO: ensure that blocks that are of heights larger than the required are discarded
         // TODO: the fastSyncMgr ensured the batch cannot be empty
@@ -536,7 +531,7 @@ public final class FastSyncManager {
         return null;
     }
 
-    public ByteArrayWrapper getPivotHash() {
-        return pivotHash;
+    public long getPivotNumber() {
+        return pivotNumber;
     }
 }
