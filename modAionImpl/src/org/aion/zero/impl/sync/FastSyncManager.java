@@ -13,15 +13,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.aion.base.type.AionAddress;
 import org.aion.base.util.ByteArrayWrapper;
@@ -66,6 +63,7 @@ public final class FastSyncManager {
 
     private AionBlock pivot = null;
     private long pivotNumber = -1;
+    private ByteArrayWrapper pivotHash = null;
 
     private final AionBlockchainImpl chain;
 
@@ -228,6 +226,7 @@ public final class FastSyncManager {
 
         this.pivot = pivot;
         this.pivotNumber = pivot.getNumber();
+        this.pivotHash = ByteArrayWrapper.wrap(pivot.getHash());
     }
 
     public boolean isAbovePivot(INode n) {
@@ -453,13 +452,19 @@ public final class FastSyncManager {
     // TODO: find alternative to making this a map; only need a list
     // TODO: handle synchronization after logic is correctly implemented
     Map<ByteArrayWrapper, Long> importedHashes = new LRUMap<>(4096);
-    Map<ByteArrayWrapper, Long> receivedHashes = new LRUMap<>(4096);
-    Map<Long, BlocksWrapper> receivedBlocks = new HashMap<>();
-    BlockingDeque<BlocksWrapper> pendingBlocksQueue = new LinkedBlockingDeque<>();
+    Map<ByteArrayWrapper, ByteArrayWrapper> receivedHashes = new LRUMap<>(1000);
+    Map<ByteArrayWrapper, BlocksWrapper> receivedBlocks = new HashMap<>();
 
     /** checks PoW and adds correct blocks to import list */
+    // TODO: should be done by separate threads
     public void validateAndAddBlocks(int peerId, String displayId, ResponseBlocks response) {
+        // cleanup since last import/received
+        // ensures that blocks that are of heights larger than the required are discarded
+        // todo: where would be the best place to put this
+        receivedHashes.keySet().removeAll(importedHashes.keySet());
+
         List<AionBlock> filtered = new ArrayList<>();
+        List<ByteArrayWrapper> batchHashes = new ArrayList<>();
 
         A0BlockHeader currentHeader, previousHeader = null;
         for (AionBlock currentBlock : response.getBlocks()) {
@@ -504,50 +509,57 @@ public final class FastSyncManager {
 
             filtered.add(currentBlock);
             previousHeader = currentHeader;
-            receivedHashes.put(hash, currentBlock.getNumber());
+            batchHashes.add(hash);
         }
 
         if (!filtered.isEmpty()) {
-            long first = filtered.get(0).getNumber();
-            if (receivedBlocks.containsKey(first)) {
-                pendingBlocksQueue.add(new BlocksWrapper(peerId, displayId, filtered));
-            } else {
-                receivedBlocks.put(first, new BlocksWrapper(peerId, displayId, filtered));
-            }
+            ByteArrayWrapper first = batchHashes.get(0);
+            // there should be no overlap because of the filtering of received hashes
+            // if there is, it's not a problem to overwrite the past response
+            receivedBlocks.put(first, new BlocksWrapper(peerId, displayId, filtered));
+            batchHashes.forEach(k -> receivedHashes.put(k, first));
         }
     }
 
-    public BlocksWrapper takeFilteredBlocks(long required) {
+    public BlocksWrapper takeFilteredBlocks(ByteArrayWrapper requiredHash, long requiredLevel) {
         // first check the map
-        if (receivedBlocks.containsKey(required)) {
-            return receivedBlocks.remove(required);
-        }
+        if (receivedBlocks.containsKey(requiredHash)) {
+            return receivedBlocks.remove(requiredHash);
+        } else if (receivedHashes.containsKey(requiredHash)) {
+            // retrieve tha batch that contains the block
+            ByteArrayWrapper wrapperHash = receivedHashes.get(requiredHash);
+            BlocksWrapper wrapper = receivedBlocks.remove(wrapperHash);
 
-        Optional<Long> key =
-                receivedBlocks.keySet().stream().filter(k -> k <= required).min(Long::compareTo);
-
-        if (key.isPresent()) {
-            return receivedBlocks.get(key.get());
-        } else {
-            try {
-                pendingBlocksQueue.take();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+            if (wrapper != null) {
+                wrapper.getBlocks()
+                        .removeIf(
+                                b ->
+                                        importedHashes.containsKey(
+                                                ByteArrayWrapper.wrap(
+                                                        b.getHash()))); // TODO: probably remove
+                if (!wrapper.getBlocks().isEmpty()) {
+                    return wrapper;
+                }
             }
         }
 
-        // TODO: ensure that blocks that are of heights larger than the required are discarded
-        // TODO: the fastSyncMgr ensured the batch cannot be empty
-        // TODO: ensure that the required hash is part of the batch
-        // TODO: if the required hash is not among the known ones, request it from the network
-
-        // TODO: block requests should be made backwards from pivot
-        // TODO: imports need to be based on hash instead of level
-
+        // couldn't find the data, so need to request it
+        makeRequests(requiredLevel);
         return null;
+    }
+
+    private void makeRequests(long requiredLevel) {
+        // TODO: if the required hash is not among the known ones, request it from the network
+        // TODO: block requests should be made backwards from pivot
+        // TODO: request that level plus further blocks
+
     }
 
     public long getPivotNumber() {
         return pivotNumber;
+    }
+
+    public ByteArrayWrapper getPivotHash() {
+        return pivotHash;
     }
 }

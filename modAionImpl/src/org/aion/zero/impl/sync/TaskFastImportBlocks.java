@@ -2,6 +2,7 @@ package org.aion.zero.impl.sync;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import org.aion.base.util.ByteArrayWrapper;
 import org.aion.mcf.core.FastImportResult;
 import org.aion.zero.impl.AionBlockchainImpl;
 import org.aion.zero.impl.types.AionBlock;
@@ -19,7 +20,8 @@ final class TaskFastImportBlocks implements Runnable {
 
     private final AionBlockchainImpl chain;
     private final FastSyncManager fastSyncMgr;
-    private long required;
+    private long requiredLevel;
+    private ByteArrayWrapper requiredHash;
     private final Logger log;
 
     TaskFastImportBlocks(
@@ -27,7 +29,8 @@ final class TaskFastImportBlocks implements Runnable {
         this.chain = chain;
         this.fastSyncMgr = fastSyncMgr;
         this.log = log;
-        this.required = 0;
+        this.requiredLevel = 0;
+        this.requiredHash = null;
     }
 
     @Override
@@ -36,64 +39,70 @@ final class TaskFastImportBlocks implements Runnable {
         while (!fastSyncMgr.isComplete()) {
             if (fastSyncMgr.isCompleteBlockData()) {
                 // the block data is complete, but fast sync may still fail and reset pivot
-                required = 0;
+                requiredLevel = 0;
+                requiredHash = null;
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
                 }
             } else {
-                if (required == 0) {
-                    required = fastSyncMgr.getPivotNumber();
+                if (requiredLevel == 0 || requiredHash == null) {
+                    requiredLevel = fastSyncMgr.getPivotNumber();
+                    requiredHash = fastSyncMgr.getPivotHash();
                 } else {
-                    BlocksWrapper bw = fastSyncMgr.takeFilteredBlocks(required);
+                    BlocksWrapper bw = fastSyncMgr.takeFilteredBlocks(requiredHash, requiredLevel);
+                    if (bw == null) {
+                        try {
+                            // TODO: determine sleep time
+                            // wait for the requested blocks to come in
+                            Thread.sleep(1000);
+                        } catch (InterruptedException e) {
+                        }
+                        continue;
+                    }
 
-                    // the fastSyncMgr ensured the batch cannot be empty
+                    // filter blocks just in case they don't start at the correct place
                     List<AionBlock> batch =
                             bw.getBlocks().stream()
-                                    .filter(b -> b.getNumber() >= required)
-                                    .collect(Collectors.toList());
+                                    .filter(b -> b.getNumber() <= requiredLevel)
+                                    .collect(Collectors.toList()); // TODO: probably remove
 
                     // process batch and update the peer state
                     FastImportResult importResult;
                     AionBlock lastImported = null;
 
                     for (AionBlock b : batch) {
+                        if (b.getNumber() > requiredLevel) {
+                            continue;
+                        }
                         try {
                             long t1 = System.currentTimeMillis();
                             importResult = this.chain.tryFastImport(b);
                             long t2 = System.currentTimeMillis();
-                            if (log.isDebugEnabled()) {
-                                // printing sync mode only when debug is enabled
-                                log.debug(
-                                        "<import-status: node = {},  hash = {}, number = {}, txs = {}, block time = {}, result = {}, time elapsed = {} ms>",
+                            if (log.isInfoEnabled()) {
+                                log.info(
+                                        "<import-status: node = {}, hash = {}, number = {}, txs = {}, result = {}, time elapsed = {} ms>",
                                         bw.getDisplayId(),
                                         b.getShortHash(),
                                         b.getNumber(),
                                         b.getTransactionsList().size(),
-                                        b.getTimestamp(),
                                         importResult,
                                         t2 - t1);
-                            } else {
-                                // a different message will be printed to indicate the storage of
-                                // blocks
-                                if (log.isInfoEnabled()) {
-                                    log.info(
-                                            "<import-status: node = {}, hash = {}, number = {}, txs = {}, result = {}, time elapsed = {} ms>",
-                                            bw.getDisplayId(),
-                                            b.getShortHash(),
-                                            b.getNumber(),
-                                            b.getTransactionsList().size(),
-                                            importResult,
-                                            t2 - t1);
-                                }
                             }
 
                             if (importResult.isSuccessful()) {
                                 lastImported = b;
                             } else if (importResult.isKnown()) {
                                 lastImported = null; // to not update required incorrectly below
-                                required = chain.findMissingAncestorHeight(b.getNumber() - 1);
-                                break; // no need to continue importing
+                                // TODO: create a single method
+                                requiredLevel = chain.findMissingAncestorHeight(b.getNumber() - 1);
+                                requiredHash = chain.findMissingAncestor(b.getParentHash());
+                                // check the last one in the batch
+                                if (batch.get(batch.size() - 1).getNumber() > requiredLevel) {
+                                    break; // no need to continue importing
+                                } else {
+                                    continue;
+                                }
                             }
                         } catch (Exception e) {
                             log.error("<import-block throw> ", e);
@@ -109,7 +118,8 @@ final class TaskFastImportBlocks implements Runnable {
 
                     // update the required hash
                     if (lastImported != null) {
-                        required = lastImported.getNumber() - 1;
+                        requiredLevel = lastImported.getNumber() - 1;
+                        requiredHash = ByteArrayWrapper.wrap(lastImported.getParentHash());
                     }
                 }
             }
