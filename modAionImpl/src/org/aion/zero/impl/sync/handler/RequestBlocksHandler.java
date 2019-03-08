@@ -5,6 +5,7 @@ import java.util.List;
 import org.aion.p2p.Ctrl;
 import org.aion.p2p.Handler;
 import org.aion.p2p.IP2pMgr;
+import org.aion.p2p.V1Constants;
 import org.aion.p2p.Ver;
 import org.aion.zero.impl.core.IAionBlockchain;
 import org.aion.zero.impl.sync.Act;
@@ -51,7 +52,7 @@ public final class RequestBlocksHandler extends Handler {
 
         if (request != null) {
             long start = request.getStart();
-            int count = request.getCount();
+            int count = Math.min(request.getCount(), V1Constants.BLOCKS_REQUEST_MAXIMUM_BATCH_SIZE);
             boolean descending = request.isDescending();
 
             if (log.isDebugEnabled()) {

@@ -92,6 +92,7 @@ final class TaskFastImportBlocks implements Runnable {
 
                             if (importResult.isSuccessful()) {
                                 lastImported = b;
+                                fastSyncMgr.addToImportedBlocks(ByteArrayWrapper.wrap(b.getHash()));
                             } else if (importResult.isKnown()) {
                                 lastImported = null; // to not update required incorrectly below
                                 // TODO: create a single method

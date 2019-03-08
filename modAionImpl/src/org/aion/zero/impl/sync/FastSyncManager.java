@@ -1,5 +1,6 @@
 package org.aion.zero.impl.sync;
 
+import static org.aion.p2p.V1Constants.BLOCKS_REQUEST_MAXIMUM_BATCH_SIZE;
 import static org.aion.p2p.V1Constants.CONTRACT_MISSING_KEYS_LIMIT;
 import static org.aion.p2p.V1Constants.TRIE_DATA_REQUEST_MAXIMUM_BATCH_SIZE;
 
@@ -28,9 +29,11 @@ import org.aion.log.LogEnum;
 import org.aion.mcf.core.AccountState;
 import org.aion.mcf.valid.BlockHeaderValidator;
 import org.aion.p2p.INode;
+import org.aion.p2p.impl1.P2pMgr;
 import org.aion.vm.api.interfaces.Address;
 import org.aion.zero.impl.AionBlockchainImpl;
 import org.aion.zero.impl.db.ContractInformation;
+import org.aion.zero.impl.sync.msg.RequestBlocks;
 import org.aion.zero.impl.sync.msg.RequestTrieData;
 import org.aion.zero.impl.sync.msg.ResponseBlocks;
 import org.aion.zero.impl.types.AionBlock;
@@ -66,6 +69,7 @@ public final class FastSyncManager {
     private ByteArrayWrapper pivotHash = null;
 
     private final AionBlockchainImpl chain;
+    private P2pMgr p2pMgr;
 
     // TODO: ensure it gets instantiated for testing
     private BlockHeaderValidator<A0BlockHeader> blockHeaderValidator;
@@ -76,6 +80,7 @@ public final class FastSyncManager {
     public FastSyncManager() {
         this.enabled = false;
         this.chain = null;
+        this.p2pMgr = null;
     }
 
     public FastSyncManager(AionBlockchainImpl chain) {
@@ -87,6 +92,18 @@ public final class FastSyncManager {
         this.enabled = true;
         this.chain = chain;
         this.blockHeaderValidator = blockHeaderValidator;
+    }
+
+    public FastSyncManager(
+            AionBlockchainImpl chain,
+            BlockHeaderValidator<A0BlockHeader> blockHeaderValidator,
+            P2pMgr p2pMgr) {
+        this(chain, blockHeaderValidator);
+        this.p2pMgr = p2pMgr;
+    }
+
+    public void addToImportedBlocks(ByteArrayWrapper hash) {
+        this.importedHashes.put(hash, null); // TODO: is there something useful I can add?
     }
 
     /** This builder allows creating customized {@link FastSyncManager} objects for unit tests. */
@@ -544,15 +561,35 @@ public final class FastSyncManager {
         }
 
         // couldn't find the data, so need to request it
-        makeRequests(requiredLevel);
+        makeBlockRequests(requiredLevel);
         return null;
     }
 
-    private void makeRequests(long requiredLevel) {
+    private void makeBlockRequests(long requiredLevel) {
+
         // TODO: if the required hash is not among the known ones, request it from the network
         // TODO: block requests should be made backwards from pivot
         // TODO: request that level plus further blocks
 
+        // TODO: figure out size of request
+        RequestBlocks request =
+                new RequestBlocks(requiredLevel, BLOCKS_REQUEST_MAXIMUM_BATCH_SIZE, true);
+
+        // TODO: peer selection improved
+        INode peer = p2pMgr.getRandom();
+        p2pMgr.send(peer.getIdHash(), peer.getIdShort(), request);
+
+        // send an extra request ahead of time
+        if (requiredLevel - BLOCKS_REQUEST_MAXIMUM_BATCH_SIZE > 0) {
+            peer = p2pMgr.getRandom();
+            request =
+                    new RequestBlocks(
+                            requiredLevel - BLOCKS_REQUEST_MAXIMUM_BATCH_SIZE,
+                            BLOCKS_REQUEST_MAXIMUM_BATCH_SIZE,
+                            true);
+
+            p2pMgr.send(peer.getIdHash(), peer.getIdShort(), request);
+        }
     }
 
     public long getPivotNumber() {
