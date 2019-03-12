@@ -28,6 +28,7 @@ echo "Building avm testnet release on $date..." \
 && mkdir lib \
 && cd lib \
 && cp ../../../"$avm_repo"dist/lib/* . \
+&& cp ../../../"$avm_repo"dist/avm.jar . \
 && echo "Cleaning up the config directory for a local node..." \
 && cd ../config/avmtestnet/ \
 && rm config-e66d*.xml \
