@@ -2,6 +2,8 @@ package org.aion.api.server.types;
 
 import static org.aion.util.string.StringUtils.toJsonHex;
 
+import java.math.BigInteger;
+import java.nio.ByteBuffer;
 import org.aion.interfaces.block.Block;
 import org.aion.interfaces.block.BlockHeader;
 import org.aion.types.Address;
@@ -11,11 +13,13 @@ import org.aion.mcf.types.AbstractTxReceipt;
 import org.aion.util.bytes.ByteUtil;
 import org.aion.util.string.StringUtils;
 import org.aion.vm.api.interfaces.IExecutionLog;
+import org.aion.vm.api.interfaces.TransactionInterface;
 import org.aion.zero.impl.types.AionBlock;
 import org.aion.zero.types.AionTransaction;
 import org.aion.zero.types.AionTxReceipt;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.aion.crypto.HashUtil;
 
 /** @author chris */
 @SuppressWarnings("unused")
@@ -102,9 +106,14 @@ public final class TxRecpt {
         this.gasPrice = ((AionTxReceipt) receipt).getTransaction().getEnergyPrice();
         this.nrgLimit = ((AionTxReceipt) receipt).getTransaction().getEnergyLimit();
 
-        if (receipt.getTransaction().getContractAddress() != null)
-            this.contractAddress =
-                    toJsonHex(receipt.getTransaction().getContractAddress().toString());
+        if (receipt.getTransaction().getContractAddress() != null) {
+            // quick fix for the Avm testnet
+            if (receipt.getTransaction().getTargetVM() == 0x0f) {
+                this.contractAddress = toJsonHex(generateContractAddress(receipt.getTransaction()).toString());
+            } else {
+                this.contractAddress = toJsonHex(receipt.getTransaction().getContractAddress().toString());
+            }
+        }
         this.transactionHash = toJsonHex(receipt.getTransaction().getTransactionHash());
         this.transactionIndex = txInfo.getIndex();
         this.root = ByteUtil.toHexString(this.txRoot);
@@ -125,6 +134,16 @@ public final class TxRecpt {
 
         this.logsBloom = txInfo.getReceipt().getBloomFilter().toString();
         this.successful = txInfo.getReceipt().isSuccessful();
+    }
+
+    private Address generateContractAddress(TransactionInterface tx) {
+        Address sender = tx.getSenderAddress();
+        long nonce = new BigInteger(tx.getNonce()).longValue();
+        ByteBuffer buffer =
+            ByteBuffer.allocate(Address.SIZE + Long.BYTES).put(sender.toBytes()).putLong(nonce);
+        byte[] hash = HashUtil.sha256(buffer.array());
+        hash[0] = 0x0f;
+        return Address.wrap(hash);
     }
 
     public TxRecpt(
@@ -153,10 +172,15 @@ public final class TxRecpt {
         this.cumulativeNrgUsed = cumulativeNrgUsed;
         this.nrgUsed = receipt.getEnergyUsed();
 
-        this.contractAddress =
-                tx.getContractAddress() != null
-                        ? toJsonHex(tx.getContractAddress().toString())
-                        : null;
+        if (tx.getContractAddress() != null) {
+            // quick fix for the Avm Testnet
+            if (tx.getTargetVM() == 0x0f) {
+                this.contractAddress = toJsonHex(generateContractAddress(receipt.getTransaction()).toString());
+            } else {
+                this.contractAddress = toJsonHex(tx.getContractAddress().toString());
+            }
+        }
+
         this.transactionHash = toJsonHex(tx.getTransactionHash());
         this.transactionIndex = txIndex;
         this.root = this.txRoot != null ? ByteUtil.toHexString(this.txRoot) : null;
