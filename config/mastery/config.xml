@@ -21,13 +21,16 @@
             <oracle-enabled>false</oracle-enabled>
         </nrg-recommendation>
     </api>
+    <vm>
+        <avm-enabled>true</avm-enabled>
+    </vm>
     <net>
         <id>32</id>
         <nodes>
-            <node>p2p://a30d1000-8c7e-496c-9c4e-c89318280274@168.62.170.146:30303</node>
+            <!--<node>p2p://a30d1000-8c7e-496c-9c4e-c89318280274@168.62.170.146:30303</node>
             <node>p2p://a30d2000-729a-4584-86f1-e19ab97cf9ce@23.96.22.19:30303</node>
             <node>p2p://a30d4000-729a-4584-86f1-e19ab97cf9cq@13.90.81.122:30303</node>
-            <node>p2p://a30d5000-8c7e-496c-9c4e-c89318280275@104.42.186.213:30303</node>
+            <node>p2p://a30d5000-8c7e-496c-9c4e-c89318280275@104.42.186.213:30303</node>-->
         </nodes>
         <p2p>
             <ip>0.0.0.0</ip>
@@ -48,7 +51,7 @@
     </sync>
     <consensus>
         <mining>true</mining>
-        <miner-address>a08fc457b39b03c30dc71bdb89a4d0409dd4fa42f6539a5c3ee4054af9b71f23</miner-address>
+        <miner-address>a000000000000000000000000000000000000000000000000000000000000000</miner-address>
         <cpu-mine-threads>1</cpu-mine-threads>
         <extra-data>AION</extra-data>
         <nrg-strategy>
@@ -88,6 +91,7 @@
         <API>INFO</API>
         <P2P>INFO</P2P>
         <GUI>INFO</GUI>
+        <TX>TRACE</TX>
     </log>
     <gui>
         <launcher>
