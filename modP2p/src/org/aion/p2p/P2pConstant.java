@@ -33,7 +33,7 @@ public class P2pConstant {
              */
             CLOSE_OVERLAPPING_BLOCKS = 15,
             STEP_COUNT = 6,
-            MIN_NORMAL_PEERS = 4,
+            MIN_NORMAL_PEERS = 0,
             MAX_NORMAL_PEERS = 16,
             COEFFICIENT_NORMAL_PEERS = 2,
 
