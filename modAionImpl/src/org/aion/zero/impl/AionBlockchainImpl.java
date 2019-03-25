@@ -33,6 +33,7 @@ import org.aion.equihash.EquihashMiner;
 import org.aion.evtmgr.IEvent;
 import org.aion.evtmgr.IEventMgr;
 import org.aion.evtmgr.impl.evt.EventBlock;
+import org.aion.interfaces.db.ContractDetails;
 import org.aion.interfaces.db.Repository;
 import org.aion.interfaces.db.RepositoryCache;
 import org.aion.log.AionLoggerFactory;
@@ -846,6 +847,35 @@ public class AionBlockchainImpl implements IAionBlockchain {
                 parent, txs, waitUntilBlockTime, System.currentTimeMillis() / THOUSAND_MS);
     }
 
+    /**
+     * Generate a GC transaction when the parent block has avm contract transaction.
+     *
+     * @param parent the parent block
+     * @param time the blocktimestamp
+     * @return a GC transaction when the parent has avm contract transaction, otherwise, return
+     *     null.
+     */
+    private AionTransaction createGCTransaction(AionBlock parent, long time) {
+        List<AionTransaction> parentTxns = parent.getTransactionsList();
+
+        if (parentTxns == null || parentTxns.isEmpty()) {
+            return null;
+        } else {
+
+            for (int i = parentTxns.size(); i > 0; i--) {
+                AionTransaction tx = parentTxns.get(i - 1);
+                if (tx.getTargetVM() == TransactionTypes.AVM_CREATE_CODE && tx.getDestinationAddress() != null) {
+                    ContractDetails gcContract =
+                            repository.getContractDetails(tx.getDestinationAddress());
+                    if (gcContract != null && gcContract.getAddress() != null) {
+                        return new AionTransaction(gcContract.getAddress(), time);
+                    }
+                }
+            }
+            return null;
+        }
+    }
+
     BlockContext createNewBlockInternal(
             AionBlock parent,
             List<AionTransaction> txs,
@@ -864,6 +894,13 @@ public class AionBlockchainImpl implements IAionBlockchain {
             }
         }
         long energyLimit = this.energyLimitStrategy.getEnergyLimit(parent.getHeader());
+
+        if (config.isAvmEnabled()) {
+            AionTransaction gcTx = createGCTransaction(parent, time);
+            if (gcTx != null) {
+                txs.add(gcTx);
+            }
+        }
 
         AionBlock block;
         try {

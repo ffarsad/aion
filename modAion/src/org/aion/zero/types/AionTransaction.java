@@ -4,6 +4,7 @@ import static org.aion.util.bytes.ByteUtil.ZERO_BYTE_ARRAY;
 
 import java.math.BigInteger;
 import java.util.Arrays;
+import org.aion.mcf.tx.TransactionTypes;
 import org.aion.mcf.vm.types.DataWordImpl;
 import org.aion.types.Address;
 import org.aion.crypto.ECKey;
@@ -111,6 +112,17 @@ public class AionTransaction extends AbstractTransaction {
         parsed = true;
     }
 
+    /**
+     * The AionTransaction constructor for creating a gc transaction
+     *
+     * @param to the avm contract need to be GC
+     * @param blockTimeStamp the timeStamp for the new block.
+     */
+    public AionTransaction(Address to, long blockTimeStamp) {
+        super(to, blockTimeStamp);
+        parsed = true;
+    }
+
     @Override
     public AionTransaction clone() {
         if (!parsed) {
@@ -159,11 +171,18 @@ public class AionTransaction extends AbstractTransaction {
                 LOG.error("tx -> unable to decode signature");
             }
         } else {
-            LOG.error("tx -> no signature found");
-        }
+            if (!isGCTransaction()) {
+                LOG.error("tx -> no signature found");
+            } else {
+                this.signature = null;
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("GC transaction! {}", this);
+                }
+            }
 
-        this.parsed = true;
-        this.hash = this.getTransactionHash();
+            this.parsed = true;
+            this.hash = this.getTransactionHash();
+        }
     }
 
     public boolean isParsed() {
@@ -366,11 +385,11 @@ public class AionTransaction extends AbstractTransaction {
                 + "hash="
                 + ByteUtil.toHexString(hash)
                 + ", nonce="
-                + new BigInteger(1, nonce)
+                + (nonce == null ? "null" : new BigInteger(1, nonce))
                 + ", receiveAddress="
-                + (to == null ? "" : to.toString())
+                + (to == null ? "null" : to.toString())
                 + ", value="
-                + new BigInteger(1, value)
+                + (value == null ? "null" : new BigInteger(1, value))
                 + ", data="
                 + dataS
                 + ", timeStamp="
@@ -441,16 +460,37 @@ public class AionTransaction extends AbstractTransaction {
         byte[] sigs;
 
         if (signature == null) {
-            LOG.error("Encoded transaction has no signature!");
-            return null;
+            if (!isGCTransaction()) {
+                LOG.error("Encoded transaction has no signature!");
+                return null;
+            } else {
+                sigs = RLP.encodeElement(null);
+            }
+        } else {
+            sigs = RLP.encodeElement(signature.toBytes());
         }
 
-        sigs = RLP.encodeElement(signature.toBytes());
         this.rlpEncoded =
                 RLP.encodeList(nonce, to, value, data, timeStamp, nrg, nrgPrice, type, sigs);
         this.hash = this.getTransactionHash();
 
         return rlpEncoded;
+    }
+
+    /**
+     * @implNote the GC transaction only has `to` and `timestamp` data field
+     * @return the boolean value when the transaction is a GC transaction.
+     */
+    public boolean isGCTransaction() {
+        return getNonce() == ZERO_BYTE_ARRAY
+                && getValue() == ZERO_BYTE_ARRAY
+                && getEnergyLimit() == 0
+                && getEnergyPrice() == 0
+                && getTargetVM() == TransactionTypes.AVM_CREATE_CODE
+                && from == null
+                && data == null
+                && to != null
+                && timeStamp != null;
     }
 
     @Override
@@ -487,12 +527,7 @@ public class AionTransaction extends AbstractTransaction {
             String to, BigInteger amount, BigInteger nonce, long nrg, long nrgPrice)
             throws Exception {
         return new AionTransaction(
-                nonce.toByteArray(),
-                Address.wrap(to),
-                amount.toByteArray(),
-                null,
-                nrg,
-                nrgPrice);
+                nonce.toByteArray(), Address.wrap(to), amount.toByteArray(), null, nrg, nrgPrice);
     }
 
     @Override

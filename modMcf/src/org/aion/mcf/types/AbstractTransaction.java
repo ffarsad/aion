@@ -88,6 +88,17 @@ public abstract class AbstractTransaction implements Transaction {
         this.type = type;
     }
 
+    public AbstractTransaction(Address to, long blockTimeStamp) {
+        this.nonce = null;
+        this.data = null;
+        this.value = null;
+        this.nrg = 0;
+        this.nrgPrice = 0;
+        this.to = to;
+        this.timeStamp = BigInteger.valueOf(blockTimeStamp).toByteArray();
+        this.type = TransactionTypes.AVM_CREATE_CODE;
+    }
+
     public abstract byte[] getEncoded();
 
     public abstract Address getSenderAddress();

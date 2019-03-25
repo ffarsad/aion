@@ -270,8 +270,10 @@ public class AvmBulkTransactionTest {
                         TransactionTypes.AVM_CREATE_CODE);
         transaction.sign(sender);
 
+        List<AionTransaction> txList = new ArrayList<>();
+        txList.add(transaction);
         AionBlockSummary summary =
-                sendTransactionsInBulkInSingleBlock(Collections.singletonList(transaction));
+                sendTransactionsInBulkInSingleBlock(txList);
         return (int)
                 ABIDecoder.decodeOneObject(summary.getReceipts().get(0).getTransactionOutput());
     }

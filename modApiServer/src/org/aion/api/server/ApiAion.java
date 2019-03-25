@@ -171,6 +171,8 @@ public abstract class ApiAion extends Api {
                         new AionPendingStateImpl.TransactionSortedSet();
                 ret.addAll(ac.getAionHub().getPendingState().getPendingTransactions());
 
+
+
                 currentTemplate =
                         ac.getAionHub()
                                 .getBlockchain()
