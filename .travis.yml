@@ -20,7 +20,16 @@ cache:
     - $HOME/.gradle/caches/
     - $HOME/.gradle/wrapper/
 
+dist: xenial
 addons:
   apt:
-    packages:
-      - oracle-java11installer
+    sources:
+      - docker-xenial
+      
+env:
+  global:
+    - JAVA_HOME="${env.JDK_9_HOME}"
+    - ANT_HOME="${env.ANT_HOME}"
+    - SYSTEM_TESTS_HOME="test"
+    - GIT_BRANCH="${env.BRANCH_NAME}"
+    - DOCKER_HOST = "unix:///var/run/docker.sock"
