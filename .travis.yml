@@ -1,0 +1,26 @@
+jdk:
+  - oraclejdk11
+  - openjdk11
+
+before_cache:
+  - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
+  - rm -fr $HOME/.gradle/caches/*/plugin-resolution/
+  
+cache components:
+  - git submodule update --init --remote --recursive
+
+before_install:
+  - gradlew build pack
+  
+install: 
+  - gradlew ciBuild
+ 
+cache:
+  directories:
+    - $HOME/.gradle/caches/
+    - $HOME/.gradle/wrapper/
+
+addons:
+  apt:
+    packages:
+      - oracle-java11installer
