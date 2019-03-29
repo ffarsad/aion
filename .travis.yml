@@ -10,10 +10,10 @@ cache components:
   - git submodule update --init --remote --recursive
 
 before_install:
-  - gradlew build pack
+  - ./gradlew build pack
   
 install: 
-  - gradlew ciBuild
+  - ./gradlew ciBuild
  
 cache:
   directories:
