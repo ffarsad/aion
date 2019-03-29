@@ -28,8 +28,6 @@ addons:
       
 env:
   global:
-    - JAVA_HOME="${env.JDK_9_HOME}"
-    - ANT_HOME="${env.ANT_HOME}"
     - SYSTEM_TESTS_HOME="test"
-    - GIT_BRANCH="${env.BRANCH_NAME}"
+    - GIT_BRANCH=${TRAVIS_BRANCH}
     - DOCKER_HOST = "unix:///var/run/docker.sock"
