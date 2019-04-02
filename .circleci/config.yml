@@ -6,14 +6,24 @@ jobs:
     working_directory: ~/repo
     docker:
       - image: circleci/openjdk:11.0.2-jdk-stretch
-      environment:
-        _JAVA_OPTIONS: '-Xmx1500m -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -XX:ParallelGCThreads=2 -XX:ConcGCThreads=2 -XX:ParallelGCThreads=2 -Djava.util.concurrent.ForkJoinPool.common.parallelism=2' # Borrowed from https://github.com/chrisbanes/tivi/blob/master/.circleci/config.yml - Sometimes gradle_tests_run job would fail with OOM error from CI. This is an attempt to fix it!
-        SYSTEM_TESTS_HOME: 'test'
-        GIT_BRANCH: '${CIRCLE_BRANCH}'
-        DOCKER_HOST: 'unix:///var/run/docker.sock'
-        TERM: 'dumb'
 
     steps:
+      - run:
+          name: "Setup custom environment variables"
+          command: echo 'export GIT_BRANCH='"${CIRCLE_BRANCH}"' >> $BASH_ENV
+      - run:
+          name: "Setup custom environment variables"
+          command: echo 'export TERM='"dumb"' >> $BASH_ENV
+      - run:
+          name: "Setup custom environment variables"
+          command: echo 'export DOCKER_HOST='"unix:///var/run/docker.sock"' >> $BASH_ENV
+      - run:
+          name: "Setup custom environment variables"
+          command: echo 'export SYSTEM_TESTS_HOME='"test"' >> $BASH_ENV
+      - run:
+          name: "Setup custom environment variables"
+          command: echo 'export _JAVA_OPTIONS='"-Xmx1500m -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -XX:ParallelGCThreads=2 -XX:ConcGCThreads=2 -XX:ParallelGCThreads=2 -Djava.util.concurrent.ForkJoinPool.common.parallelism=2"' >> $BASH_ENV
+
       # Restore the gradle dependency cache use increasingly general patterns, to speed up the build
       - restore_cache:
           keys:
