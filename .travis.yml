@@ -1,10 +1,16 @@
 jdk:
-  - openjdk11
+  - openjdk8
+
+sudo: false # run on container-based infrastructure
 
 before_cache:
   - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
   - rm -fr $HOME/.gradle/caches/*/plugin-resolution/
-  
+cache:
+  directories:
+    - $HOME/.gradle/caches/
+    - $HOME/.gradle/wrapper/
+
 cache components:
   - git submodule update --init --remote --recursive
 
@@ -14,11 +20,6 @@ before_install:
 install: 
   - ./gradlew ciBuild
  
-cache:
-  directories:
-    - $HOME/.gradle/caches/
-    - $HOME/.gradle/wrapper/
-
 dist: xenial
 addons:
   apt:
@@ -29,4 +30,4 @@ env:
   global:
     - SYSTEM_TESTS_HOME="test"
     - GIT_BRANCH=${TRAVIS_BRANCH}
-    - DOCKER_HOST = "unix:///var/run/docker.sock"
+    - DOCKER_HOST="unix:///var/run/docker.sock"
