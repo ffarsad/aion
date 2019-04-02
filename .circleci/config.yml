@@ -55,8 +55,7 @@ jobs:
 
       # Store the log files from the build process
       - store_artifacts:
-          paths:
-            - ~/pack/aion-v*.tar.bz
+          path: ~/pack/aion-v*.tar.bz
             
       # Save gradle dependency cache items
       - save_cache:
