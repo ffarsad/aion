@@ -14,7 +14,7 @@ cache:
     - $HOME/.gradle/wrapper/
 
 before_install:
-  - git submodule update --init --remote --recursiveive
+  - git submodule update --init --remote --recursive
   - ./gradlew build pack
   
 install: 
