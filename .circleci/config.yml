@@ -1,146 +1,59 @@
-# Java Gradle CircleCI 2.0 configuration file
+# CircleCI 2.0 configuration file
 #
-# Check https://circleci.com/docs/2.0/language-java/ for more details
-#
-version: 2.1
-
-aliases:
-  # Repo Cache aliases
-  - &restore-repo-cache
-    keys:
-      - v2-jars-{{ checksum "workspace/repo/build.gradle" }}-{{ checksum  "workspace/repo/gradle.properties" }}
-  - &save-repo-cache
-    paths:
-      - ~/.gradle/caches
-      - ~/.gradle/wrapper
-    key: v2-jars-{{ checksum "workspace/repo/build.gradle" }}-{{ checksum  "workspace/repo/gradle.properties" }}
-
-  # Download project Gradle dependencies
-  - &download-gradle-dependencies
-    name: Download Gradle dependencies
-    command: |
-      cd workspace/repo
-      ./gradlew getVmDependencies --no-daemon
-
-  # Save aion Gradle test results
-  - &save-aion-gradle-tests-results
-    name: Save aion Gradle tests results
-    command: |
-      cd workspace
-      mkdir -p junit
-      cd repo
-      find . -type f -regex ".*/build/test-results/.*xml" -exec cp {} ~/aion-working-dir/workspace/junit/ \;
-    when: always
-
-attach_workspace: &attach_workspace
-  attach_workspace:
-    at: ~/aion-working-dir/workspace
-
-store_aion_tests_results: &store_aion_tests_results
-  store_test_results:
-    path: ~/aion-working-dir/workspace/junit
-
-store_aion_artifacts: &store_aion_artifacts
-  store_artifacts:
-    path: 
-	  - ~/aion-working-dir/workspace/junit
-      - ~/aion-working-dir/workspace/pack/aion-v*.tar.bz
-
-executors:
-  aion-executor:
+version: 2
+jobs:
+  build:
+    working_directory: ~/repo
     docker:
       - image: circleci/openjdk:11.0.2-jdk-stretch
-    working_directory: ~/aion-working-dir
-    environment:
-      # Borrowed from https://github.com/chrisbanes/tivi/blob/master/.circleci/config.yml
-      # Sometimes gradle_tests_run job would fail with OOM error from CI. This is an attempt to fix it!
-      _JAVA_OPTIONS: "-Xmx1500m -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -XX:ParallelGCThreads=2 -XX:ConcGCThreads=2 -XX:ParallelGCThreads=2 -Djava.util.concurrent.ForkJoinPool.common.parallelism=2"
-      TERM: 'dumb'
-      SYSTEM_TESTS_HOME="test"
-      GIT_BRANCH=${CIRCLE_BRANCH}
-      DOCKER_HOST="unix:///var/run/docker.sock"
+      environment:
+        _JAVA_OPTIONS: '-Xmx1500m -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -XX:ParallelGCThreads=2 -XX:ConcGCThreads=2 -XX:ParallelGCThreads=2 -Djava.util.concurrent.ForkJoinPool.common.parallelism=2' # Borrowed from https://github.com/chrisbanes/tivi/blob/master/.circleci/config.yml - Sometimes gradle_tests_run job would fail with OOM error from CI. This is an attempt to fix it!
+        SYSTEM_TESTS_HOME: 'test'
+        GIT_BRANCH: '${CIRCLE_BRANCH}'
+        DOCKER_HOST: 'unix:///var/run/docker.sock'
+        TERM: 'dumb'
 
-commands:
-  attach_restore:
-    description: "A command that attaches to workspace, and restores caches"
     steps:
-      - *attach_workspace
-      - restore_cache: *restore-repo-cache
+      # Restore the gradle dependency cache use increasingly general patterns, to speed up the build
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+            - source-v1-{{ .Branch }}-
+            - source-v1-
 
-  gradle_build:
-    description: "A command that uses Gradle for builds"
-    parameters:
-      module_name:
-        type: string
-    steps:
-      - attach_restore
-      - run:
-          name: Build <<parameters.module_name>> with Gradle
-          command: |
-            cd workspace/repo
-            ./gradlew :<<parameters.module_name>>:assembleDebug --no-daemon --max-workers 2
+      # Check out the source repository
+      - checkout
 
-jobs:
-  checkout_code:
-    executor: aion-executor
-    steps:
-      # Create folders needed
-      - run: mkdir -p workspace
-      - run: mkdir -p repo
+      # Update Git submodules
+      - run: git submodule update --init --remote --recursive
 
-      # Checkout code into repo
-      - checkout:
-          path: workspace/repo
-
-      # Persist repo code
-      - persist_to_workspace:
-          root: workspace
+      # Save the repository to the source cache
+      - save_cache:
+          key: source-v1-{{ .Branch }}-{{ .Revision }}
           paths:
-            - repo
+            - ".git"
 
-  build:
-    executor: aion-executor
-    steps:
-      - attach_restore
-      - run:
-          name: Update Git submodules
-          command: |
-			cd workspace/repo
-			git submodule update --init --remote --recursiveive
-      - run:
-          name: Run CI Build
-          command: |
-            cd workspace/repo
-            ./gradlew build pack --no-daemon --max-workers 2
-	  - save_cache: *save-repo-cache
+      - restore_cache:
+          keys:
+            # when lock file changes, use increasingly general patterns to restore cache
+            - gradle-deps-v1-{{ .Branch }}-{{ checksum "dependencies.lockfile" }}
+            - gradle-deps-v1-{{ .Branch }}-
+            - gradle-deps-v1-
 
-  gradle_tests_run:
-    executor: aion-executor
-    steps:
-      - attach_restore
-      - run:
-          name: Run CI Build
-          command: |
-            cd workspace/repo
-            ./gradlew ciBuild --no-daemon --max-workers 2
-      - run: *save-aion-gradle-tests-results
-      - *store_aion_tests_results
-      - *store_aion_artifacts
+      # Run the gradle build & pack processes
+      - run: gradle build pack --no-daemon --max-workers 2
 
-workflows:
-  version: 2
-  build_and_test:
-    jobs:
-      - checkout_code
-      - build:
-          requires:
-            - checkout_code
-      - gradle_tests_run:
-          requires:
-            - build
-      - publish_snapshot:
-          requires:
-            - gradle_tests_run
-          filters:
-            branches:
-              only: master
+      # Store the log files from the build process
+      - store_artifacts:
+          paths:
+            - ~/pack/aion-v*.tar.bz
+            
+      # Save gradle dependency cache items
+      - save_cache:
+          paths:
+            - ~/.gradle/caches
+            - ~/.gradle/wrapper
+          key: gradle-deps-v1-{{ .Branch }}-{{ checksum "dependencies.lockfile" }}
+
+      # Run the gradle ciBuild process
+      - run: gradle ciBuild --no-daemon --max-workers 2
