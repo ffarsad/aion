@@ -27,7 +27,7 @@ workflows:
             - diagnostic-orb/memory        
       - gradle/run:
           requires:
-            - build          
+            - diagnostics          
           command: build pack -x test
   aion-build-cibuild:
     jobs:
@@ -39,5 +39,5 @@ workflows:
             - diagnostic-orb/memory        
       - gradle/run:
           requires:
-            - build          
+            - diagnostics          
           command: ciBuild
