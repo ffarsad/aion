@@ -1,28 +1,57 @@
 # CircleCI 2.1 configuration file
+#
 version: 2.1
-
-orbs:
-  gradle: circleci/gradle@1.0.11
-
-executors:
-  gradle:
-    docker:
-      - image: 'circleci/openjdk:11.0.2-jdk-stretch'
-
 jobs:
-  aion-checkout:
-    executor: gradle
-    steps:
+  build:
+    docker:
+      - image: circleci/openjdk:11.0.2-jdk-stretch
+        environment:
+          GIT_BRANCH: ${CIRCLE_BRANCH}
+          TERM: dumb
+          DOCKER_HOST: "unix:///var/run/docker.sock"
+          SYSTEM_TESTS_HOME: test
+          _JAVA_OPTIONS: "-Xmx1500m -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -XX:ParallelGCThreads=2 -XX:ConcGCThreads=2 -XX:ParallelGCThreads=2 -Djava.util.concurrent.ForkJoinPool.common.parallelism=2"
+
+      # Restore the gradle dependency cache use increasingly general patterns, to speed up the build
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+            - source-v1-{{ .Branch }}-
+            - source-v1-
+
+      # Check out the source repository
       - checkout
+
+      # Update Git submodules
       - run: git submodule init
       - run: git submodule update --init --recursive
 
-workflows:
-  aion-build-pack:
-    jobs:
-      - gradle/run:
-          command: build pack -x test --scan
-  aion-build-cibuild:
-    jobs:
-      - gradle/run:
-          command: ciBuild --scan
+      # Save the repository to the source cache
+      - save_cache:
+          key: source-v1-{{ .Branch }}-{{ .Revision }}
+          paths:
+            - ".git"
+
+      - restore_cache:
+          keys:
+            # when lock file changes, use increasingly general patterns to restore cache
+            - gradle-deps-v1-{{ .Branch }}-{{ checksum "dependencies.lockfile" }}
+            - gradle-deps-v1-{{ .Branch }}-
+            - gradle-deps-v1-
+
+      # Run the gradle build & pack processes
+      - run: /gradlew build pack --scan
+
+      # Store the log files from the build process
+      - store_artifacts:
+          path: ~/pack/aion-v*.tar.bz
+            
+      # Save gradle dependency cache items
+      - save_cache:
+          paths:
+            - ~/.gradle/caches
+            - ~/.gradle/wrapper
+          key: gradle-deps-v1-{{ .Branch }}-{{ checksum "dependencies.lockfile" }}
+
+      # Run the gradle ciBuild test
+      - run: /gradlew ciBuild --scan
