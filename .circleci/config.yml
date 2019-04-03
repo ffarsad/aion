@@ -3,7 +3,7 @@ version: 2.1
 
 orbs:
   gradle: circleci/gradle@1.0.11
-  build-tools: circleci/build-tools@2.2.0
+  diagnostic-orb: circleci/diagnostic-orb@1.0.0
 
 executors:
   gradle:
