@@ -1,6 +1,6 @@
-# CircleCI 2.1 configuration file
+# CircleCI 2.0 configuration file
 #
-version: 2.1
+version: 2
 jobs:
   build:
     docker:
@@ -8,10 +8,11 @@ jobs:
         environment:
           GIT_BRANCH: ${CIRCLE_BRANCH}
           TERM: dumb
-          DOCKER_HOST: "unix:///var/run/docker.sock"
+          DOCKER_HOST: 'unix:///var/run/docker.sock'
           SYSTEM_TESTS_HOME: test
-          _JAVA_OPTIONS: "-Xmx1500m -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -XX:ParallelGCThreads=2 -XX:ConcGCThreads=2 -XX:ParallelGCThreads=2 -Djava.util.concurrent.ForkJoinPool.common.parallelism=2"
+          _JAVA_OPTIONS: '-Xmx1500m -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -XX:ParallelGCThreads=2 -XX:ConcGCThreads=2 -XX:ParallelGCThreads=2 -Djava.util.concurrent.ForkJoinPool.common.parallelism=2'
 
+    steps:
       # Restore the gradle dependency cache use increasingly general patterns, to speed up the build
       - restore_cache:
           keys:
