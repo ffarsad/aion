@@ -3,7 +3,6 @@ version: 2.1
 
 orbs:
   gradle: circleci/gradle@1.0.11
-  diagnostic-orb: circleci/diagnostic-orb@1.0.0
 
 executors:
   gradle:
@@ -19,25 +18,9 @@ jobs:
 workflows:
   aion-build-pack:
     jobs:
-      - diagnostics:
-          post-steps:
-            - diagnostic-orb/store-report
-          pre-steps:
-            - diagnostic-orb/env-info
-            - diagnostic-orb/memory        
       - gradle/run:
-          requires:
-            - diagnostics          
           command: build pack -x test
   aion-build-cibuild:
     jobs:
-      - diagnostics:
-          post-steps:
-            - diagnostic-orb/store-report
-          pre-steps:
-            - diagnostic-orb/env-info
-            - diagnostic-orb/memory        
       - gradle/run:
-          requires:
-            - diagnostics          
           command: ciBuild
