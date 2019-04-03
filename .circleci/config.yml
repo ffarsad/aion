@@ -14,13 +14,15 @@ jobs:
     executor: gradle
     steps:
       - checkout
+      - run: git submodule init
+      - run: git submodule update --init --recursive
 
 workflows:
   aion-build-pack:
     jobs:
       - gradle/run:
-          command: build pack -x test
+          command: build pack -x test --scan
   aion-build-cibuild:
     jobs:
       - gradle/run:
-          command: ciBuild
+          command: ciBuild --scan
