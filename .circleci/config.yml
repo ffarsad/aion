@@ -10,7 +10,7 @@ jobs:
           TERM: dumb
           DOCKER_HOST: 'unix:///var/run/docker.sock'
           SYSTEM_TESTS_HOME: test
-          _JAVA_OPTIONS: '-Xmx1500m -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -XX:ParallelGCThreads=2 -XX:ConcGCThreads=2 -XX:ParallelGCThreads=2 -Djava.util.concurrent.ForkJoinPool.common.parallelism=2'
+          # _JAVA_OPTIONS: '-Xmx1500m -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -XX:ParallelGCThreads=2 -XX:ConcGCThreads=2 -XX:ParallelGCThreads=2 -Djava.util.concurrent.ForkJoinPool.common.parallelism=2'
 
     steps:
       # Restore the gradle dependency cache use increasingly general patterns, to speed up the build
