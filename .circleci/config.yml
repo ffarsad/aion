@@ -36,12 +36,12 @@ jobs:
       - restore_cache:
           keys:
             # when lock file changes, use increasingly general patterns to restore cache
-            - gradle-deps-v1-{{ .Branch }}-{{ checksum "dependencies.lockfile" }}
+            - gradle-deps-v1-{{ .Branch }}-{{ checksum "build.gradle" }}
             - gradle-deps-v1-{{ .Branch }}-
             - gradle-deps-v1-
 
       # Run the gradle build & pack processes
-      - run: /gradlew build pack --scan
+      - run: ~/gradlew build pack --scan
 
       # Store the log files from the build process
       - store_artifacts:
@@ -52,7 +52,7 @@ jobs:
           paths:
             - ~/.gradle/caches
             - ~/.gradle/wrapper
-          key: gradle-deps-v1-{{ .Branch }}-{{ checksum "dependencies.lockfile" }}
+          key: gradle-deps-v1-{{ .Branch }}-{{ checksum "build.gradle" }}
 
       # Run the gradle ciBuild test
-      - run: /gradlew ciBuild --scan
+      - run: ~/gradlew ciBuild --scan
