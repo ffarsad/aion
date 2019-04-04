@@ -23,6 +23,7 @@ import org.aion.mcf.account.Keystore;
 
 import org.aion.util.bytes.ByteUtil;
 import org.aion.util.string.StringUtils;
+import org.aion.vm.VirtualMachineProvider;
 import org.aion.zero.impl.Version;
 import org.aion.zero.impl.blockchain.AionImpl;
 import org.aion.zero.impl.config.CfgAion;
@@ -113,12 +114,15 @@ public class ApiAion0Test {
         CfgAion.inst().getDb().setPath(DATABASE_PATH);
         api = new ApiAion0(AionImpl.inst());
         testStartTime = System.currentTimeMillis();
+        VirtualMachineProvider.initializeAllVirtualMachines();
     }
 
     @After
     public void tearDown() {
         api.shutDown();
         rsp = null;
+
+        VirtualMachineProvider.shutdownAllVirtualMachines();
 
         // get a list of all the files in keystore directory
         File folder = new File(KEYSTORE_PATH);
@@ -818,8 +822,6 @@ public class ApiAion0Test {
     @Test
     @Ignore
     public void testProcessGetTxCount() throws Exception {
-        setup();
-
         AionImpl impl = AionImpl.inst();
         AionRepositoryImpl repo = AionRepositoryImpl.inst();
 
@@ -913,43 +915,6 @@ public class ApiAion0Test {
         assertEquals(api.solcVersion(), rslt.getVer());
 
         rsp = sendRequest(Message.Servs.s_hb_VALUE, Message.Funcs.f_getSolcVersion_VALUE);
-
-        assertEquals(Message.Retcode.r_fail_service_call_VALUE, rsp[1]);
-    }
-
-    @Test
-    public void testProcessIsSyncing() throws Exception {
-        rsp = sendRequest(Message.Servs.s_net_VALUE, Message.Funcs.f_isSyncing_VALUE);
-
-        assertEquals(Message.Retcode.r_success_VALUE, rsp[1]);
-
-        Message.rsp_isSyncing rslt = Message.rsp_isSyncing.parseFrom(stripHeader(rsp));
-        assertNotEquals(AionImpl.inst().isSyncComplete(), rslt.getSyncing());
-
-        rsp = sendRequest(Message.Servs.s_hb_VALUE, Message.Funcs.f_isSyncing_VALUE);
-
-        assertEquals(Message.Retcode.r_fail_service_call_VALUE, rsp[1]);
-    }
-
-    @Test
-    public void testProcessSyncInfo() throws Exception {
-        setup();
-        AionImpl impl = AionImpl.inst();
-
-        rsp = sendRequest(Message.Servs.s_net_VALUE, Message.Funcs.f_syncInfo_VALUE);
-
-        assertEquals(Message.Retcode.r_success_VALUE, rsp[1]);
-
-        Message.rsp_syncInfo rslt = Message.rsp_syncInfo.parseFrom(stripHeader(rsp));
-        assertNotEquals(impl.isSyncComplete(), rslt.getSyncing());
-        assertEquals(
-                (long) impl.getLocalBestBlockNumber().orElse(0L), (long) rslt.getChainBestBlock());
-        assertEquals(
-                (long) impl.getNetworkBestBlockNumber().orElse(0L),
-                (long) rslt.getNetworkBestBlock());
-        assertEquals(24, rslt.getMaxImportBlocks());
-
-        rsp = sendRequest(Message.Servs.s_hb_VALUE, Message.Funcs.f_syncInfo_VALUE);
 
         assertEquals(Message.Retcode.r_fail_service_call_VALUE, rsp[1]);
     }

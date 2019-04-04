@@ -30,8 +30,8 @@ public class KernelInterfaceForAVM implements KernelInterface {
     }
 
     @Override
-    public KernelInterfaceForFastVM makeChildKernelInterface() {
-        return new KernelInterfaceForFastVM(
+    public KernelInterfaceForAVM makeChildKernelInterface() {
+        return new KernelInterfaceForAVM(
                 this.repositoryCache.startTracking(), this.allowNonceIncrement, this.isLocalCall);
     }
 
@@ -72,6 +72,17 @@ public class KernelInterfaceForAVM implements KernelInterface {
     @Override
     public byte[] getCode(Address address) {
         return this.repositoryCache.getCode(address);
+    }
+
+    @Override
+    public void putObjectGraph(Address contract, byte[] graph) {
+        //Todo: implement it when avm is ready.
+    }
+
+    @Override
+    public byte[] getObjectGraph(Address contract) {
+        //Todo: implement it when avm is ready.
+        return new byte[0];
     }
 
     @Override

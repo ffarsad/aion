@@ -1,8 +1,8 @@
 package org.aion.zero.impl.vm.contracts;
 
-import org.aion.avm.api.ABIDecoder;
 import org.aion.avm.api.Address;
 import org.aion.avm.api.BlockchainRuntime;
+import org.aion.avm.userlib.abi.ABIDecoder;
 
 public final class Contract {
     private static final Address owner = BlockchainRuntime.getCaller();
@@ -21,7 +21,18 @@ public final class Contract {
     }
 
     public static byte[] main() {
-        return ABIDecoder.decodeAndRunWithClass(Contract.class, BlockchainRuntime.getData());
+        ABIDecoder decoder = new ABIDecoder(BlockchainRuntime.getData());
+        String methodName = decoder.decodeMethodName();
+        if (methodName == null) {
+            return new byte[0];
+        } else {
+            if (methodName.equals("transfer")) {
+                transfer(decoder.decodeOneAddress());
+                return new byte[0];
+            } else {
+                return new byte[0];
+            }
+        }
     }
 
 }

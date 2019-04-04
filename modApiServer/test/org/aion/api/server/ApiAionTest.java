@@ -2,6 +2,7 @@ package org.aion.api.server;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -27,6 +28,7 @@ import org.aion.mcf.account.AccountManager;
 import org.aion.mcf.account.Keystore;
 import org.aion.mcf.blockchain.TxResponse;
 
+import org.aion.vm.VirtualMachineProvider;
 import org.aion.zero.impl.blockchain.AionImpl;
 import org.aion.zero.impl.config.CfgAion;
 import org.aion.zero.impl.db.AionBlockStore;
@@ -128,10 +130,13 @@ public class ApiAionTest {
         api = new ApiAionImpl(impl);
         repo = AionRepositoryImpl.inst();
         testStartTime = System.currentTimeMillis();
+        VirtualMachineProvider.initializeAllVirtualMachines();
     }
 
     @After
     public void tearDown() {
+        VirtualMachineProvider.shutdownAllVirtualMachines();
+
         // get a list of all the files in keystore directory
         File folder = new File(KEYSTORE_PATH);
 
@@ -206,21 +211,58 @@ public class ApiAionTest {
                 CfgAion.inst().getGenesis().getDifficultyBI());
     }
 
+    /**
+     * Tests that getSyncInfo returns the correct information when the local best block number is
+     * greater than {@link ApiAion#SYNC_TOLERANCE} blocks below the network best block.
+     *
+     * <p>{@link ApiAion#SYNC_TOLERANCE} is the number of blocks that the local must be within
+     * (compared to the network best) in order for syncing to be considered complete.
+     */
     @Test
-    public void testGetSync() {
-        SyncInfo sync = api.getSync();
-        assertNotNull(sync);
-        assertEquals(sync.done, impl.isSyncComplete());
-        if (impl.getInitialStartingBlockNumber().isPresent())
-            assertEquals(
-                    (long) impl.getInitialStartingBlockNumber().get(), sync.chainStartingBlkNumber);
-        else assertEquals(0L, sync.chainStartingBlkNumber);
-        if (impl.getNetworkBestBlockNumber().isPresent())
-            assertEquals((long) impl.getNetworkBestBlockNumber().get(), sync.networkBestBlkNumber);
-        else assertEquals(0L, sync.networkBestBlkNumber);
-        if (impl.getLocalBestBlockNumber().isPresent())
-            assertEquals((long) impl.getLocalBestBlockNumber().get(), sync.chainBestBlkNumber);
-        else assertEquals(0L, sync.chainBestBlkNumber);
+    public void testGetSyncInfoWhenLocalIsOutsideSyncToleranceAmount() {
+        long localBestBlockNumber = 0;
+        long networkBestBlockNumber = localBestBlockNumber + ApiAion.SYNC_TOLERANCE + 1;
+
+        SyncInfo syncInfo = api.getSyncInfo(localBestBlockNumber, networkBestBlockNumber);
+        assertFalse(syncInfo.done);
+        assertEquals(localBestBlockNumber, syncInfo.chainBestBlkNumber);
+        assertEquals(networkBestBlockNumber, syncInfo.networkBestBlkNumber);
+    }
+
+    /**
+     * Tests that getSyncInfo returns the correct information when the local best block number is
+     * {@link ApiAion#SYNC_TOLERANCE} blocks below the network best block.
+     *
+     * <p>{@link ApiAion#SYNC_TOLERANCE} is the number of blocks that the local must be within
+     * (compared to the network best) in order for syncing to be considered complete.
+     */
+    @Test
+    public void testGetSyncInfoWhenLocalIsAtSyncToleranceAmount() {
+        long localBestBlockNumber = 0;
+        long networkBestBlockNumber = localBestBlockNumber + ApiAion.SYNC_TOLERANCE;
+
+        SyncInfo syncInfo = api.getSyncInfo(localBestBlockNumber, networkBestBlockNumber);
+        assertTrue(syncInfo.done);
+        assertEquals(localBestBlockNumber, syncInfo.chainBestBlkNumber);
+        assertEquals(networkBestBlockNumber, syncInfo.networkBestBlkNumber);
+    }
+
+    /**
+     * Tests that getSyncInfo returns the correct information when the local best block number is
+     * less than {@link ApiAion#SYNC_TOLERANCE} blocks below the network best block.
+     *
+     * <p>{@link ApiAion#SYNC_TOLERANCE} is the number of blocks that the local must be within
+     * (compared to the network best) in order for syncing to be considered complete.
+     */
+    @Test
+    public void testGetSyncInfoWhenLocalIsWithinSyncToleranceAmount() {
+        long localBestBlockNumber = 0;
+        long networkBestBlockNumber = localBestBlockNumber + ApiAion.SYNC_TOLERANCE - 1;
+
+        SyncInfo syncInfo = api.getSyncInfo(localBestBlockNumber, networkBestBlockNumber);
+        assertTrue(syncInfo.done);
+        assertEquals(localBestBlockNumber, syncInfo.chainBestBlkNumber);
+        assertEquals(networkBestBlockNumber, syncInfo.networkBestBlkNumber);
     }
 
     @Test
@@ -295,7 +337,6 @@ public class ApiAionTest {
                         100000);
 
         assertNotNull(api.doCall(txcall));
-        tearDown();
     }
 
     @Test
@@ -328,7 +369,6 @@ public class ApiAionTest {
                         100000);
 
         assertEquals(impl.estimateTxNrg(tx, api.getBestBlock()), api.estimateNrg(txcall));
-        tearDown();
     }
 
     @Test
@@ -387,11 +427,8 @@ public class ApiAionTest {
     @Test
     public void testAccountGetters() {
         assertEquals(
-                repo.getBalance(Address.ZERO_ADDRESS()),
-                api.getBalance(Address.ZERO_ADDRESS()));
-        assertEquals(
-                repo.getNonce(Address.ZERO_ADDRESS()),
-                api.getNonce(Address.ZERO_ADDRESS()));
+                repo.getBalance(Address.ZERO_ADDRESS()), api.getBalance(Address.ZERO_ADDRESS()));
+        assertEquals(repo.getNonce(Address.ZERO_ADDRESS()), api.getNonce(Address.ZERO_ADDRESS()));
         assertEquals(
                 repo.getBalance(Address.ZERO_ADDRESS()),
                 api.getBalance(Address.ZERO_ADDRESS().toString()));
@@ -462,8 +499,7 @@ public class ApiAionTest {
         api.initNrgOracle(impl);
 
         assertNotNull(api.getCoinbase());
-        assertEquals(
-                repo.getCode(Address.ZERO_ADDRESS()), api.getCode(Address.ZERO_ADDRESS()));
+        assertEquals(repo.getCode(Address.ZERO_ADDRESS()), api.getCode(Address.ZERO_ADDRESS()));
         assertEquals(impl.getBlockMiner().isMining(), api.isMining());
         assertArrayEquals(CfgAion.inst().getNodes(), api.getBootNodes());
         assertEquals(impl.getAionHub().getP2pMgr().getActiveNodes().size(), api.peerCount());
