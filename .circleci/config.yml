@@ -43,7 +43,7 @@ jobs:
       # Run the gradle build & pack processes
       - run:
           name: Building Gradle project (parallel mode)
-          command: ./gradlew build pack --scan --parallel
+          command: ~/repo/gradlew build pack --scan --parallel
 
       # Save gradle dependency cache items
       - save_cache:
@@ -60,7 +60,7 @@ jobs:
       # Run the gradle ciBuild test
       - run:
           name: Testing Gradle project
-          command: ./gradlew ciBuild --scan
+          command: ~/repo/gradlew ciBuild --scan
 
       # Save test results
       - run:
