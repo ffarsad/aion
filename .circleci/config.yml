@@ -41,7 +41,7 @@ jobs:
             - gradle-deps-v1-
 
       # Run the gradle build & pack processes
-      - run: ~/gradlew build pack --scan
+      - run: ~/project/gradlew build pack --scan
 
       # Store the log files from the build process
       - store_artifacts:
@@ -55,4 +55,4 @@ jobs:
           key: gradle-deps-v1-{{ .Branch }}-{{ checksum "build.gradle" }}
 
       # Run the gradle ciBuild test
-      - run: ~/gradlew ciBuild --scan
+      - run: ~/project/gradlew ciBuild --scan
