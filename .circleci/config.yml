@@ -21,8 +21,9 @@ jobs:
           GIT_BRANCH: ${CIRCLE_BRANCH}
           DOCKER_HOST: 'unix:///var/run/docker.sock'
           SYSTEM_TESTS_HOME: test
-          _JAVA_OPTIONS: "-Xmx2048m -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap"
-          GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx2048m"'
+          JAVA_OPTS: "-Xms512m -Xmx1024m"
+          _JAVA_OPTIONS: "-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap"
+          GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx2048m -XX:+HeapDumpOnOutOfMemoryError"'
 
     steps:
       # Check out the source repository
