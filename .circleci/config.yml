@@ -54,7 +54,7 @@ jobs:
       # Run the gradle build and pack process
       - run:
           name: Perform SonarQube analysis on Gradle project
-          command: ~/repo/gradlew --scan sonarqube \
+          command: ~/repo/gradlew sonarqube \
             -Dsonar.projectKey=danaionnet_aion \
             -Dsonar.organization=danaionnet-github \
             -Dsonar.host.url=https://sonarcloud.io \
