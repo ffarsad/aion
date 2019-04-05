@@ -45,7 +45,7 @@ jobs:
       # Create symlink for current Java release *** (temporary step until JAVA_HOME can be used)
       - run:
           name: Create symlink for current Java release
-          command: ln -s  /usr/lib/jvm/jdk-11.0.1 /usr/lib/jvm/java-11-openjdk-amd64
+          command: sudo ln -s  /usr/lib/jvm/jdk-11.0.1 /usr/lib/jvm/java-11-openjdk-amd64
 
       # Restore gradle dependency cache items (if possible)
       - restore_cache:
@@ -55,7 +55,7 @@ jobs:
       - run:
           name: Perform SonarQube analysis on Gradle project
           command: | 
-            ./gradlew sonarqube \
+             ~/repo/gradlew --scan sonarqube \
             -Dsonar.projectKey=danaionnet_aion \
             -Dsonar.organization=danaionnet-github \
             -Dsonar.host.url=https://sonarcloud.io \
