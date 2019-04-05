@@ -40,7 +40,7 @@ jobs:
       # Create the build artifacts directory *** (temporary step until JAVA_HOME can be used)
       - run:
           name: Create the JDK directory
-          command: mkdir -p /usr/lib/jvm/jdk-11.0.1
+          command: sudo mkdir -p /usr/lib/jvm/jdk-11.0.1
 
       # Create symlink for current Java release *** (temporary step until JAVA_HOME can be used)
       - run:
