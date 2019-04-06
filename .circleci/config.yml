@@ -44,7 +44,7 @@ jobs:
 
       # Restore gradle dependency cache items (if possible)
       - restore_cache:
-          keys: gradle-deps-v1-{{ .Branch }}-{{ checksum "build.gradle" }}
+          keys: gradle-deps-v1-{{ .Branch }}-{{ checksum "~/repo/build.gradle" }}
 
       # Run the gradle build & pack processes (Parallel Mode)
       - run:
@@ -66,7 +66,7 @@ jobs:
           paths:
             - ~/.gradle/caches
             - ~/.gradle/wrapper
-          key: gradle-deps-v1-{{ .Branch }}-{{ checksum "build.gradle" }}
+          key: gradle-deps-v1-{{ .Branch }}-{{ checksum "~/repo/build.gradle" }}
 
       # Save test results
       - run:
