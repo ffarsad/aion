@@ -45,7 +45,7 @@ jobs:
       # Create symlink for current Java release *** (temporary step until JAVA_HOME can be used)
       - run:
           name: Create symlink for current Java release
-          command: sudo ln -s  /usr/lib/jvm/jdk-11.0.1 /usr/lib/jvm/java-11-openjdk-amd64
+          command: sudo ln -s  /usr/lib/jvm/jdk-11.0.1/ /usr/lib/jvm/java-11-openjdk-amd64/jdk-11.0.1/
 
       # Restore gradle dependency cache items (if possible)
       - restore_cache:
