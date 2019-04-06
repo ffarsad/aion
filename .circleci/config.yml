@@ -45,8 +45,6 @@ jobs:
       - restore_cache:
           keys: 
             - gradle-deps-v1-{{ .Branch }}-{{ checksum "build.gradle" }}
-            - gradle-deps-v1-{{ .Branch }}-
-            - gradle-deps-v1-
 
       # Run the gradle build & pack processes (Parallel Mode)
       - run:
@@ -55,7 +53,7 @@ jobs:
 
       # Store build artifacts (compressed files)
       - store_artifacts:
-          path: ~/pack/aion-v*.tar.bz
+          path: ~/pack/aion-v*.tar.gz
           destination: build-output-archive
 
       # Run the gradle ciBuild test
