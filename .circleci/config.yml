@@ -23,7 +23,7 @@ jobs:
       GIT_BRANCH: ${CIRCLE_BRANCH}
       DOCKER_HOST: 'unix:///var/run/docker.sock'
       SYSTEM_TESTS_HOME: test
-      _JAVA_OPTIONS: "-Xms3072m"
+      _JAVA_OPTIONS: "-Xms1g"
 
     steps:
       # Check out the source repository
