@@ -23,7 +23,7 @@ jobs:
       GIT_BRANCH: ${CIRCLE_BRANCH}
       DOCKER_HOST: 'unix:///var/run/docker.sock'
       SYSTEM_TESTS_HOME: test
-      _JAVA_OPTIONS: "-Xms1g -Xmx4g -XX:+UseContainerSupport"
+      _JAVA_OPTIONS: "-Xms2g -Xmx4g -XX:+UseContainerSupport"
 
     steps:
       # Check out the source repository
@@ -56,10 +56,10 @@ jobs:
           path: ~/pack/aion-v*.tar.bz
           destination: build-output-archive
 
-      # Run the gradle ciBuild test (Parallel Mode)
+      # Run the gradle ciBuild test
       - run:
           name: Testing Gradle project
-          command: ~/repo/gradlew ciBuild --scan --build-cache --parallel
+          command: ~/repo/gradlew ciBuild --scan --build-cache
 
       # Save gradle dependency cache items
       - save_cache:
