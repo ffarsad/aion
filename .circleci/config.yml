@@ -1,85 +1,42 @@
-### aion.network Circle CI pipeline
-
-version: 2.1
-
-commands:
-  git_setup:
-    description: 'Commands needed to sync and update git and submodules'
-    steps:
-      - run:
-          name: Git Submodule Sync
-          command: git submodule sync
-      - run:
-          name: Git Submodule Update
-          command: git submodule update --init
-
+# Java Gradle CircleCI 2.0 configuration file
+#
+# Check https://circleci.com/docs/2.0/language-java/ for more details
+#
+version: 2
 jobs:
   build:
-    working_directory: ~/repo
     docker:
-      - image: circleci/openjdk:11.0.2-jdk-stretch
+      # specify the version you desire here
+      - image: circleci/openjdk:8-jdk
+
+      # Specify service dependencies here if necessary
+      # CircleCI maintains a library of pre-built images
+      # documented at https://circleci.com/docs/2.0/circleci-images/
+      # - image: circleci/postgres:9.4
+
+    working_directory: ~/repo
+
     environment:
+      # Customize the JVM maximum heap limit
+      JVM_OPTS: -Xmx3200m
       TERM: dumb
-      GIT_BRANCH: ${CIRCLE_BRANCH}
-      DOCKER_HOST: 'unix:///var/run/docker.sock'
-      SYSTEM_TESTS_HOME: test
-      _JAVA_OPTIONS: "-Xms512m -Xmx4096m -XX:+UseContainerSupport"
 
     steps:
-      # Check out the source repository
       - checkout
 
-      # Sync and update submodules
-      - git_setup
-
-      # Run the gradle build & pack processes
-      - run:
-          name: Create build artifacts directory
-          command: mkdir -p ~/pack
-
-      # Restore gradle dependency cache items (if possible)
+      # Download and cache dependencies
       - restore_cache:
-          keys: gradle-deps-v1-{{ .Branch }}-{{ checksum "build.gradle" }}
+          keys:
+            - v1-dependencies-{{ checksum "build.gradle" }}
+            # fallback to using the latest cache if no exact match is found
+            - v1-dependencies-
 
-      # Run the gradle build & pack processes
-      - run:
-          name: Building Gradle project (parallel mode)
-          command: ~/repo/gradlew build pack --scan --parallel
+      - run: gradle dependencies
 
-      # Save gradle dependency cache items
       - save_cache:
           paths:
-            - ~/.gradle/caches
-            - ~/.gradle/wrapper
-          key: gradle-deps-v1-{{ .Branch }}-{{ checksum "build.gradle" }}
+            - ~/.gradle
+          key: v1-dependencies-{{ checksum "build.gradle" }}
 
-      # Store build artifacts (compressed files)
-      - store_artifacts:
-          path: ~/pack/aion-v*.tar.bz
-          destination: build-output-archive
-
-      # Run the gradle ciBuild test
-      - run:
-          name: Testing Gradle project
-          command: ~/repo/gradlew ciBuild --scan
-
-      # Save test results
-      - run:
-          name: Saving test results
-          command: |
-            mkdir -p ~/test-results/junit/
-            find . -type f -regex ".*/build/test-results/.*xml" -exec cp {} ~/test-results/junit/ \;
-          when: always
-      
-      # Store test results
-      - store_test_results:
-          path: ~/test-results
-
-      # Store test artifacts
-      - store_artifacts:
-          path: ~/test-results/junit         
-
-workflows:
-  build-and-test:
-    jobs:
-      - build
+      # run tests!
+      - run: gradle test
